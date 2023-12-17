@@ -7,8 +7,6 @@ unsigned long *ledTimerPtr = &ledTimer;
 int ledState = LOW;
 int* ledStatePtr = &ledState;
 
-TaskHandle_t SampleTask;
-
 int blinkWithoutDelay( int pin, int *statePtr, int interval, unsigned long *timerPtr);
 void Task1 (void *pvParameters);
 
