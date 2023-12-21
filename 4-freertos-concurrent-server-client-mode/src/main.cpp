@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include "prepareResponse.h"
 
 String SSID = "Nokia 3.4";
 String PASS = "Qwerty123";
@@ -17,6 +18,7 @@ void StartupKill (void *pvParameters);
 
 void WifiSetup (void *pvParameters);
 void WifiIndicator (void *pvParameters);
+void WifiServer (void *pvParameters);
 
 void setup () {
   delay(1000);
@@ -52,12 +54,12 @@ void setup () {
   );
 
   xTaskCreatePinnedToCore(
-    WifiIndicator,
+    WifiIndicator, // Only runs once.
     "wifiSetup",
     1000,
     NULL,
     80,
-    &networkRoutine, // If running on stealth mode, set to startupRoutine so it won't blink after setup period.
+    &startupRoutine,
     1
   );
 }
@@ -80,6 +82,7 @@ void Blink3 (void *pvParameters) {
 
   // exit routine
   pinMode(LED_BUILTIN, INPUT);
+
   vTaskDelete(NULL);
 }
 
@@ -108,6 +111,16 @@ void WifiSetup (void *pvParameters) {
   xWifiSemaphore = xSemaphoreCreateBinary();
   xSemaphoreGive(xSerialSemaphore);
 
+  xTaskCreatePinnedToCore(
+    WifiServer,
+    "server",
+    1500,
+    NULL,
+    80,
+    NULL,
+    1
+  );
+
   vTaskDelete(NULL);
 }
 
@@ -122,6 +135,41 @@ void WifiIndicator (void *pvParameters) {
     &startupRoutine,
     1
   );
+
+  vTaskDelete(NULL);
+}
+
+void WifiServer (void *pvParameters) {
+  WiFiServer server(80);
+  while (xWifiSemaphore == NULL) vTaskDelay((TickType_t) 50 / portTICK_PERIOD_MS);
+  server.begin();
+
+  for (;;) {
+    WiFiClient client = server.accept();
+
+    if (client) {
+      String request;
+      while (client.connected()) {
+
+        if (client.available()) {
+          String line = client.readStringUntil('\r');
+
+          if (line.startsWith("GET") && line.endsWith("HTTP/1.1") && !line.startsWith("GET /favicon.ico")) { // request decoder
+            request = line.substring(line.indexOf("GET"), line.lastIndexOf(" HTTP/1.1"));
+          }
+
+          if (line.length() == 1 && line[0] == '\n') { // response manager
+            if (request == "GET /") client.println(httpResponse());
+            else if (request == "GET /123") client.println(httpResponse());
+            break;
+          }
+        }
+      }
+
+      while (client.available()) client.read();
+      client.stop();
+    }
+  }
 
   vTaskDelete(NULL);
 }
