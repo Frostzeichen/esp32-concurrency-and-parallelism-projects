@@ -5,7 +5,7 @@ setup:
 	alacritty -T "jellyfish - monitor" --hold &
 	sleep .2
 	wmctrl -r "jellyfish - monitor" -e 0,1414,48,492,978
-	sleep .5
+	sleep .9
 	wmctrl -a "$(VSCODE_WINDOWNAME)"
 
 upload-and-monitor:
