@@ -164,6 +164,7 @@ void WifiServer (void *pvParameters) {
             break;
           }
         }
+        vTaskDelay((TickType_t) 5 / portTICK_PERIOD_MS);
       }
 
       while (client.available()) client.read();
@@ -172,4 +173,8 @@ void WifiServer (void *pvParameters) {
   }
 
   vTaskDelete(NULL);
+}
+
+void WifiClient (void *pvParameters) {
+  WiFiClient client;
 }
