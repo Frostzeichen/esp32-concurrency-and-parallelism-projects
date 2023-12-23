@@ -2,8 +2,8 @@
 #include <WiFi.h>
 #include "prepareResponse.h"
 
-String SSID = "Nokia 3.4";
-String PASS = "Qwerty123";
+String SSID = "GlobeAtHome_F3398";
+String PASS = "AC1656F1";
 int PORT = 80;
 
 SemaphoreHandle_t xSerialSemaphore = NULL;
@@ -19,6 +19,7 @@ void StartupKill (void *pvParameters);
 void WifiSetup (void *pvParameters);
 void WifiIndicator (void *pvParameters);
 void WifiServer (void *pvParameters);
+void WifiClient (void *pvParameters);
 
 void setup () {
   delay(1000);
@@ -121,6 +122,16 @@ void WifiSetup (void *pvParameters) {
     1
   );
 
+  xTaskCreatePinnedToCore(
+    WifiClient,
+    "client",
+    3500,
+    NULL,
+    80,
+    NULL,
+    0
+  );
+
   vTaskDelete(NULL);
 }
 
@@ -154,8 +165,20 @@ void WifiServer (void *pvParameters) {
         if (client.available()) {
           String line = client.readStringUntil('\r');
 
-          if (line.startsWith("GET") && line.endsWith("HTTP/1.1") && !line.startsWith("GET /favicon.ico")) { // request decoder
+          if (line.startsWith("GET") && line.endsWith("HTTP/1.1") && !line.startsWith("GET /favicon.ico")) { // GET request decoder
             request = line.substring(line.indexOf("GET"), line.lastIndexOf(" HTTP/1.1"));
+          }
+
+          if (line.startsWith("POST") && line.endsWith("HTTP/1.1")) { // POST rerquest decoder
+
+          }
+
+          if (line.startsWith("PUT") && line.endsWith("HTTP/1.1")) { // PUT rerquest decoder
+
+          }
+
+          if (line.startsWith("DELETE") && line.endsWith("HTTP/1.1")) { // DELETE rerquest decoder
+
           }
 
           if (line.length() == 1 && line[0] == '\n') { // response manager
@@ -177,4 +200,35 @@ void WifiServer (void *pvParameters) {
 
 void WifiClient (void *pvParameters) {
   WiFiClient client;
+  
+  vTaskDelay((TickType_t) 50 / portTICK_PERIOD_MS);
+  if (client.connect("api.apis.guru", 80)) {
+    Serial.println("Connected");
+    
+    client.println("GET /v2/list.json HTTP/1.1");
+    client.println("Host: api.apis.guru");
+    client.println("Connection: close");
+    client.println();
+
+    vTaskDelay((TickType_t) 150 / portTICK_PERIOD_MS);
+  }
+
+  for (;;) {
+    while (client.available()) { // Will return error 403 for most sites, but normal return for http. WiFi.h only works for HTTP and MQTT.
+      char buf[1000];
+      Serial.printf("%c", client.read());
+    }
+    
+    if (!client.connected()) {
+      Serial.println();
+      Serial.println("Disconnected");
+      client.stop();
+      break;
+    }
+
+    vTaskDelay((TickType_t) 50 / portTICK_PERIOD_MS);
+  }
+
+  Serial.println("Client mode exiting.");
+  vTaskDelete(NULL);
 }
